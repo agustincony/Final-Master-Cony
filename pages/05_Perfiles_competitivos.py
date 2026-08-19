@@ -326,35 +326,13 @@ def calc_perfil_competitivo(df):
     return pd.Series(perfil)
  
 def calc_perfil_por_jugador(df):
-    df_md = df[df["MD"] == "MD"].copy()
-    agg_dict = {col: (col, "sum") for col in COLS if col != "Minutos"}
-    agg_dict["Maximum Velocity"] = ("Maximum Velocity", "max")
-    agg_dict["Max Vel (% Max)"]  = ("Max Vel (% Max)", "max")
-    
-    por_dia = df_md.groupby(["Player Name", "Fecha"]).agg(
-        minutos=("Minutos", "sum"), **agg_dict
-    ).reset_index()
-    por_dia = por_dia[(por_dia["minutos"] >= 30) & (por_dia["minutos"] <= 100)]
-    
-    conteos = por_dia.groupby("Player Name").size()
-    jugadores_validos = conteos[conteos >= 6].index
-    por_dia = por_dia[por_dia["Player Name"].isin(jugadores_validos)]
-    
+    jugadores = df["Player Name"].dropna().unique()
     resultado = {}
-    for col in COLS:
-        data = por_dia["minutos"] if col == "Minutos" else por_dia[col]
-        agg = por_dia.groupby("Player Name")[col].agg(["max", "mean"])
-        agg["perfil"] = (agg["max"] + agg["mean"]) / 2
-        for j, row in agg.iterrows():
-            if j not in resultado:
-                resultado[j] = {}
-            resultado[j][col] = row["perfil"]
-    
-    for j in resultado:
-        resultado[j]["Maximum Velocity"] = por_dia[por_dia["Player Name"] == j]["Maximum Velocity"].max()
-        resultado[j]["Max Vel (% Max)"]  = por_dia[por_dia["Player Name"] == j]["Max Vel (% Max)"].max()
-    
-    return {j: pd.Series(v) for j, v in resultado.items()}
+    for j in jugadores:
+        perf = calc_perfil_competitivo(df[df["Player Name"] == j])
+        if not perf.isna().all():
+            resultado[j] = perf
+    return resultado
 
 def initials(name):
     parts = name.split()
