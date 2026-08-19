@@ -136,16 +136,16 @@ COL_EFF_80  = "# >80% Vel Max"
 # ══════════════════════════════════════════════════════════════════════════════
 # clave            → (etiqueta, unidad, formato, color pastel)
 METRICAS = {
-    "Distancia Total":   ("Dist Tot (m)",      "mts",      "int", "#7FB3E0"),
-    "Total Player Load": ("Player Load",        "u.a.",     "dec", "#B8A8E0"),  # nuevo
-    "AI 18 Km/h":        ("HSR (m)",            "mts",      "int", "#F2A8C0"),
-    "DT + 25 Km/h":      ("Sprint (m)",         "mts",      "int", "#C4A8E0"),
-    "+25 Km/h #":        ("N° Sprints",         "cantidad", "int", "#F5C09A"),
-    COL_DIST_80:         ("Dist >80% (m)",      "mts",      "int", "#FFB347"),  # nuevo
-    COL_EFF_80:          ("# >80% vel max",     "cantidad", "int", "#FF8C69"),  # nuevo
-    "Acel 2,5 m/ss #":              ("N° Acel",      "cantidad", "int", "#A8DDB5"),
-    "Desacel -2,5 m/ss #":          ("N° Decel",     "cantidad", "int", "#F0DC96"),
-    "Contact Involvement Total Count Avg": ("N° Contactos", "cantidad", "int", "#A8E0DC"),
+    "Distancia Total":                       ("Dist Tot (m)",      "mts",      "int", "#86DC93"),
+    "AI 18 Km/h":                            ("HSR (m)",           "mts",      "int", "#F2A8C0"),
+    "DT + 25 Km/h":                          ("Sprint (m)",        "mts",      "int", "#C4A8E0"),
+    "+25 Km/h #":                            ("N° Sprints",        "cantidad", "int", "#F5C09A"),
+    COL_DIST_80:                             ("Dist >80% (m)",     "mts",      "int", "#FFB347"),
+    COL_EFF_80:                              ("# >80% vel max",    "cantidad", "int", "#FF8C69"),
+    "Acel 2,5 m/ss #":                       ("N° Acel",           "cantidad", "int", "#A8DDB5"),
+    "Desacel -2,5 m/ss #":                   ("N° Decel",          "cantidad", "int", "#F0DC96"),
+    "Contact Involvement Total Count Avg":   ("N° Contactos",      "cantidad", "int", "#A8E0DC"),
+    "Total Player Load":                     ("Player Load",       "u.a.",     "dec", "#B8A8E0"),
 }
 COLS = list(METRICAS.keys())
 
@@ -333,6 +333,18 @@ todas_etiquetas = cat_semanas["Etiqueta"].tolist()[::-1]
 jug_sel = get_sel("jug_", todos_jugadores)
 pue_sel = get_sel("pue_", todos_puestos)
 sem_sel = get_sel("sem_", todas_etiquetas)
+
+# Inicializar flag de primera visita
+if "sem_iniciado" not in st.session_state:
+    st.session_state["sem_iniciado"] = False
+
+if not st.session_state["sem_iniciado"] and not sem_sel:
+    # Primera vez: seleccionar últimas 5
+    ultimas_5 = todas_etiquetas[:5]
+    for etq in ultimas_5:
+        st.session_state[f"sem_{etq}"] = True
+    st.session_state["sem_iniciado"] = True
+    st.rerun()
 
 jug_activo = jug_sel if jug_sel else todos_jugadores
 pue_activo = pue_sel if pue_sel else todos_puestos

@@ -216,19 +216,25 @@ st.markdown(
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="seccion-header">🏆 Top de velocidades máximas</div>', unsafe_allow_html=True)
 
-col_radio_tiempo, col_sep, col_radio_tipo, col_empty = st.columns([0.55, 0.02, 0.35, 0.08])
+col_radio_tiempo, col_radio_tipo, col_radio_unidad = st.columns([0.50, 0.33, 0.17])
 
 with col_radio_tiempo:
     periodo_top = st.radio(
         label="Período",
-        options=["1 semana", "15 días", "1 mes", "Todo el año"],
-        index=3, key="periodo_top", horizontal=True, label_visibility="collapsed",
+        options=["1 semana", "15 días", "1 mes", "3 meses", "Todo el año"],
+        index=4, key="periodo_top", horizontal=True, label_visibility="collapsed",
     )
 with col_radio_tipo:
     tipo_top = st.radio(
         label="Tipo",
         options=["Todo", "Partido", "Entrenamiento"],
         index=0, key="tipo_top", horizontal=True, label_visibility="collapsed",
+    )
+with col_radio_unidad:
+    unidad_top = st.radio(
+        label="Unidad",
+        options=["Km/h", "% Max"],
+        index=0, key="unidad_top", horizontal=True, label_visibility="collapsed",
     )
 
 hoy = date.today()
@@ -238,6 +244,8 @@ elif periodo_top == "15 días":
     fecha_corte = hoy - timedelta(days=15)
 elif periodo_top == "1 mes":
     fecha_corte = hoy - timedelta(days=30)
+elif periodo_top == "3 meses":
+    fecha_corte = hoy - timedelta(days=90)
 else:
     fecha_corte = df_raw["Fecha"].min()
 
@@ -269,44 +277,67 @@ else:
     for _, row in df_top.iterrows():
         hover_texts.append(
             f"<b>{row['Player Name']}</b><br>"
-            f"Velocidad: {row['Maximum Velocity']:.2f} km/h<br>"
+            f"Velocidad: {row['Maximum Velocity']:.2f} km/h ({row['Max Vel (% Max)']:.0f}% )<br>"
             f"Actividad: {row['Activity Name']}<br>"
             f"Fecha: {row['Fecha']}<br>"
             f"Tipo: {'Partido' if row['Es_Partido'] else 'Entrenamiento'}"
         )
 
-    bar_texts = [f"{v:.2f} km/h" for v in df_top["Maximum Velocity"]]
+    if unidad_top == "Km/h":
+        df_top = df_top.sort_values("Maximum Velocity", ascending=False).reset_index(drop=True).head(10)
+        x_vals = df_top["Maximum Velocity"]
+        bar_texts = [f"{v:.2f} km/h" for v in x_vals]
+    else:
+        df_top = df_top.sort_values("Max Vel (% Max)", ascending=False).reset_index(drop=True).head(10)
+        x_vals = df_top["Max Vel (% Max)"]
+        bar_texts = [f"{v:.0f}%" for v in x_vals]
 
-    fig_top = go.Figure(go.Bar(
-        x=df_top["Maximum Velocity"],
-        y=nombres_display,
-        orientation="h",
-        marker_color=bar_colors,
-        marker_line_width=0,
-        text=bar_texts,
-        textposition="outside",
-        textfont=dict(size=11, color="white"),
-        cliponaxis=False,
-        hovertext=hover_texts,
-        hoverinfo="text",
-    ))
-    fig_top.update_layout(
-        paper_bgcolor="#0f1a28", plot_bgcolor="#0f1a28",
-        height=max(350, len(df_top) * 34),
-        margin=dict(t=20, b=20, l=10, r=120),
-        xaxis=dict(range=[vel_min_escala - 0.5, vel_max_escala + 1.0],
-                   showgrid=True, gridcolor="#1e3048",
-                   tickfont=dict(color="#7a9ab5", size=10), ticksuffix=" km/h", zeroline=False),
-        yaxis=dict(tickfont=dict(size=11, color="#cce0f0"), showgrid=False, autorange="reversed"),
-        showlegend=False, bargap=0.3,
+bar_colors = [COLOR_PARTIDO if es else COLOR_ENTRENO for es in df_top["Es_Partido"]]
+
+nombres_display = []
+for i, (_, row) in enumerate(df_top.iterrows()):
+    medalla = MEDALLAS.get(i, "")
+    nombre  = row["Player Name"] + "\u200b" * i
+    nombres_display.append(f"{medalla} {nombre}" if medalla else f"    {nombre}")
+
+hover_texts = []
+for _, row in df_top.iterrows():
+    hover_texts.append(
+        f"<b>{row['Player Name']}</b><br>"
+        f"Velocidad: {row['Maximum Velocity']:.2f} km/h ({row['Max Vel (% Max)']:.0f}% max)<br>"
+        f"Actividad: {row['Activity Name']}<br>"
+        f"Fecha: {row['Fecha']}<br>"
+        f"Tipo: {'Partido' if row['Es_Partido'] else 'Entrenamiento'}"
     )
-    st.plotly_chart(fig_top, use_container_width=True)
+fig_top = go.Figure(go.Bar(
+    x=x_vals,
+    y=nombres_display,
+    orientation="h",
+    marker_color=bar_colors,
+    marker_line_width=0,
+    text=bar_texts,
+    textposition="outside",
+    textfont=dict(size=11, color="white"),
+    cliponaxis=False,
+    hovertext=hover_texts,
+    hoverinfo="text",
+))
+fig_top.update_layout(
+    paper_bgcolor="#0f1a28", plot_bgcolor="#0f1a28",
+    height=max(350, len(df_top) * 34),
+    margin=dict(t=20, b=20, l=10, r=120),
+    xaxis=dict(range=[df_top[x_vals.name].min() - 0.5, df_top[x_vals.name].max() + 1.0], showgrid=True, gridcolor="#1e3048",
+           tickfont=dict(color="#7a9ab5", size=10), zeroline=False),
+    yaxis=dict(tickfont=dict(size=11, color="#cce0f0"), showgrid=False, autorange="reversed"),
+    showlegend=False, bargap=0.3,
+)
+st.plotly_chart(fig_top, use_container_width=True)
 
-    st.markdown(
+st.markdown(
         '<div style="font-size:11px; color:#7a9ab5; margin-bottom:6px;">💡 Pasá el mouse sobre las barras para ver detalles</div>',
         unsafe_allow_html=True
     )
-    st.markdown(
+st.markdown(
         f'<div style="margin-top:-8px; margin-bottom:16px; display:flex; gap:20px;">'
         f'<span style="font-size:11px; color:#7a9ab5; display:flex; align-items:center; gap:6px;">'
         f'<span style="width:12px; height:12px; border-radius:2px; background:{COLOR_PARTIDO}; display:inline-block;"></span>'
