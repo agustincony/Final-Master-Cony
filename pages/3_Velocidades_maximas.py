@@ -45,6 +45,9 @@ div[data-testid="stPopoverBody"] {
 div[data-testid="stPopoverBody"] label { color: #cce0f0 !important; font-size: 13px !important; }
 div[data-testid="stPopoverBody"] p     { color: #7a9ab5 !important; font-size: 11px !important; }
 div[data-testid="stRadio"] input[type="radio"] { display: none !important; }
+div[data-testid="stRadio"] label svg { display: none !important; }
+div[data-testid="stRadio"] label > div:first-child { display: none !important; }
+div[data-testid="stRadio"] span { display: none !important; }
 div[data-testid="stRadio"] > div[role="radiogroup"] {
     display: flex !important;
     flex-direction: row !important;
@@ -133,6 +136,8 @@ def tiempo_en_distancia(distancia_m, velocidad_kmh):
 
 # ── Carga de datos ────────────────────────────────────────────────────────────
 def cargar_datos():
+    if "df_excel" not in st.session_state:
+        st.session_state["df_excel"] = pd.read_excel("TOTALES GPS.xlsx")
     df = st.session_state["df_excel"].copy()
     df = df[
         (df["Period Name"] == "Session") &

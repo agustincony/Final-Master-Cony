@@ -26,6 +26,7 @@ div[data-testid="stRadio"] label {
 div[data-testid="stRadio"] input[type="radio"] { display: none !important; }
 div[data-testid="stRadio"] label svg { display: none !important; }
 div[data-testid="stRadio"] label > div:first-child { display: none !important; }
+div[data-testid="stRadio"] span { display: none !important; }
 div[data-testid="stRadio"] > div[role="radiogroup"] {
     display: flex !important; flex-direction: row !important; gap: 4px !important;
     background-color: transparent !important; border: none !important;
