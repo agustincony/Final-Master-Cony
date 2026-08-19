@@ -364,8 +364,15 @@ pue_sel     = get_sel("pue_", todos_puestos)
 fec_sel     = get_sel("fec_", todas_fechas)
 equ_sel     = get_sel("equ_", todos_equipos)
 
+# ── Auto-detectar MD cuando hay fecha seleccionada ───────────────────────────
+if fec_sel and not md_sel:
+    mds_de_fechas = df_raw[df_raw["Fecha"].isin(fec_sel)]["MD"].dropna().unique().tolist()
+    mds_de_fechas = [m for m in mds_de_fechas if m in todas_md]
+    md_activo = mds_de_fechas if mds_de_fechas else todas_md
+else:
+    md_activo = md_sel if md_sel else todas_md
+
 # Valores activos (vacío = todos)
-md_activo   = md_sel   if md_sel   else todas_md
 jug_activo  = jug_sel  if jug_sel  else todos_jugadores
 pue_activo  = pue_sel  if pue_sel  else todos_puestos
 fec_activa  = fec_sel  if fec_sel  else todas_fechas
