@@ -12,7 +12,7 @@ st.set_page_config(page_title="Carga acumulada", layout="wide", initial_sidebar_
 st.markdown("""
 <style>
 header[data-testid="stHeader"]   { display: none !important; }
-.stApp                           { background-color: #1a2535; color: white; }
+.stApp                           { background-color: #1a2535; color: white; min-width: 1200px !important; }
 .block-container                 { padding-top: 90px !important; padding-left: 2rem !important; padding-right: 2rem !important; }
 section[data-testid="stSidebar"] { background-color: #0f1a28 !important; margin-top: 72px !important; }
 section[data-testid="stSidebar"] span { color: white !important; }
@@ -173,9 +173,8 @@ def fmt(val, tipo="int"):
 # ══════════════════════════════════════════════════════════════════════════════
 # CARGA DE DATOS
 # ══════════════════════════════════════════════════════════════════════════════
-@st.cache_data
 def cargar_datos():
-    df = pd.read_excel("TOTALES GPS.xlsx")
+    df = st.session_state["df_excel"].copy()
     df = df[
         (df["Period Name"] == "Session") &
         (df["Period Tags"] != "Diferenciado") 
@@ -185,14 +184,8 @@ def cargar_datos():
         "Pilar izquiero", "Pilar izquierdo", regex=False
     )
     df["SemanaInicio"] = df["Fecha"] - pd.to_timedelta(df["Fecha"].dt.weekday, unit="D")
-
-    # ── Calcular columnas compuestas ──────────────────────────────────────────
-    # Distancia >80% vel max: suma de las 4 bandas de velocidad Set 2
     df[COL_DIST_80] = df[COLS_DIST_80].fillna(0).sum(axis=1)
-
-    # # Esfuerzos >80% vel max: suma de los 4 conteos Set 2
     df[COL_EFF_80]  = df[COLS_EFF_80].fillna(0).sum(axis=1)
-
     return df
 
 df_raw = cargar_datos()

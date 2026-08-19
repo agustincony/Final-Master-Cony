@@ -9,7 +9,7 @@ st.set_page_config(page_title="Estado de Alerta", layout="wide", initial_sidebar
 st.markdown("""
 <style>
 header[data-testid="stHeader"]   { display: none !important; }
-.stApp                           { background-color: #1a2535; color: white; }
+.stApp                           { background-color: #1a2535; color: white; min-width: 1200px !important; }
 .block-container                 { padding-top: 90px !important; padding-left: 2rem !important; padding-right: 2rem !important; }
 section[data-testid="stSidebar"] { background-color: #0f1a28 !important; margin-top: 72px !important; }
 section[data-testid="stSidebar"] span { color: white !important; }
@@ -142,9 +142,8 @@ def label_score(s):
     return "🚨 Alerta"
 
 # ── Carga de datos ────────────────────────────────────────────────────────────
-@st.cache_data
 def cargar_datos():
-    df = pd.read_excel("TOTALES GPS.xlsx")
+    df = st.session_state["df_excel"].copy()
     df = df[
         (df["Period Name"] == "Session") &
         (df["Period Tags"] != "Diferenciado")

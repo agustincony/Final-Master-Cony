@@ -12,7 +12,7 @@ st.set_page_config(page_title="Informe de sesión", layout="wide", initial_sideb
 st.markdown("""
 <style>
 header[data-testid="stHeader"]   { display: none !important; }
-.stApp                           { background-color: #1a2535; color: white; }
+.stApp                           { background-color: #1a2535; color: white; min-width: 1200px !important; }
 .block-container                 { padding-top: 90px !important; padding-left: 2rem !important; padding-right: 2rem !important; }
 section[data-testid="stSidebar"] { background-color: #0f1a28 !important; margin-top: 72px !important; }
 section[data-testid="stSidebar"] span { color: white !important; }
@@ -182,24 +182,20 @@ def img_base64(path):
     return ""
 
 # ── Carga de datos ────────────────────────────────────────────────────────────
-@st.cache_data
 def cargar_datos():
-    """Dataset principal con filtro Minutos > 30 por fila — para mostrar datos de sesión."""
-    df = pd.read_excel("TOTALES GPS.xlsx")
+    if "df_excel" not in st.session_state:
+        st.session_state["df_excel"] = pd.read_excel("TOTALES GPS.xlsx")
+    df = st.session_state["df_excel"].copy()
     df = df[
         (df["Period Name"] == "Session") &
         (df["Period Tags"] != "Diferenciado")
     ].copy()
     df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
-    # Corregir typo en el dataset original
     df["Position Name"] = df["Position Name"].str.replace("Pilar izquiero", "Pilar izquierdo", regex=False)
     return df
 
-@st.cache_data
 def cargar_datos_sin_filtro_minutos():
-    """Dataset SIN filtro de minutos por fila — para el benchmark DAX.
-    El DAX filtra Minutos > 30 sobre la SUMA por jugador+fecha, no fila por fila."""
-    df = pd.read_excel("TOTALES GPS.xlsx")
+    df = st.session_state["df_excel"].copy()
     df = df[
         (df["Period Name"] == "Session") &
         (df["Period Tags"] != "Diferenciado")
@@ -208,8 +204,8 @@ def cargar_datos_sin_filtro_minutos():
     df["Position Name"] = df["Position Name"].str.replace("Pilar izquiero", "Pilar izquierdo", regex=False)
     return df
 
-df_raw      = cargar_datos()                    # para filtros y datos de sesión
-df_raw_full = cargar_datos_sin_filtro_minutos() # para benchmarks históricos
+df_raw      = cargar_datos()
+df_raw_full = cargar_datos_sin_filtro_minutos()
 
 # ── Topbar fija ───────────────────────────────────────────────────────────────
 logo_b64  = img_base64("LOGO_CASI_SIN_FONDO.png")

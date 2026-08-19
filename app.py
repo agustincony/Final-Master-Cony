@@ -1,5 +1,6 @@
 import streamlit as st
 import base64, os
+import pandas as pd
 
 st.set_page_config(
     page_title="CASI - Análisis de rendimiento",
@@ -7,6 +8,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+@st.cache_data
+def cargar_excel():
+    return pd.read_excel("TOTALES GPS.xlsx")
+
+if "df_excel" not in st.session_state:
+    st.session_state["df_excel"] = cargar_excel()
 
 def img_base64(path):
     if os.path.exists(path):
@@ -38,13 +46,13 @@ st.markdown(f"""
 .topbar-page    {{ font-size: 13px; font-weight: 700; color: #7a9ab5; letter-spacing: 2px; text-transform: uppercase; }}
 
 header[data-testid="stHeader"] {{ display: none !important; }}
-.stApp {{ background-color: #1a2535; color: white; }}
+.stApp {{ background-color: #1a2535; color: white; min-width: 1200px !important; }}
 .block-container {{ padding-top: 90px !important; padding-left: 2rem !important; padding-right: 2rem !important; }}
 section[data-testid="stSidebar"] {{ background-color: #0f1a28 !important; margin-top: 72px !important; }}
 section[data-testid="stSidebar"] span {{ color: white !important; }}
 section[data-testid="stSidebar"] p    {{ color: white !important; }}
 div[data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
-section[data-testid="collapsedControl"] {{ display: none !important; }}
+section[data-testid="collapsedControl"] {{ display: none !important; }}listo
 section[data-testid="collapsedControl"] svg {{ stroke: white !important; }}
 </style>
 
