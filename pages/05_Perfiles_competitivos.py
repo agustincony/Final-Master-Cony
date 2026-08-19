@@ -324,7 +324,8 @@ def calc_perfil_competitivo(df):
         perfil["Maximum Velocity"] = por_dia["Maximum Velocity"].max() if "Maximum Velocity" in por_dia.columns else np.nan
     perfil["Max Vel (% Max)"]  = por_dia["Max Vel (% Max)"].max()  if "Max Vel (% Max)" in por_dia.columns else np.nan
     return pd.Series(perfil)
-    
+
+@st.cache_data    
 def calc_perfil_por_jugador(df):
     jugadores = df["Player Name"].dropna().unique()
     resultado = {}
