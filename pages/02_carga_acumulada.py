@@ -580,7 +580,7 @@ for col in COLS:
         )
         st.plotly_chart(fig_a, use_container_width=True, key=f"acum_{col}")
 
-    # ── Derecha: detalle por sesión ───────────────────────────────────────────
+        # ── Derecha: detalle por sesión ───────────────────────────────────────────
     with c_der:
         vals_d = detalle[col].tolist()
         lbls_d = detalle["EtqDia"].tolist()
@@ -591,6 +591,20 @@ for col in COLS:
             detalle["MD"].tolist(),
             detalle["EtqDia"].tolist()
         ))
+
+        # Detectar cambios de semana para líneas divisorias
+        semanas = detalle["SemanaInicio"].tolist()
+        shapes = []
+        for i in range(1, len(semanas)):
+            if semanas[i] != semanas[i - 1]:
+                shapes.append(dict(
+                    type="line",
+                    x0=i - 0.5, x1=i - 0.5,
+                    y0=0, y1=1,
+                    yref="paper",
+                    line=dict(color="rgba(150,170,190,0.3)", width=1, dash="dot"),
+                ))
+
         fig_d = go.Figure(go.Bar(
             x=x_idx, y=vals_d,
             marker_color=cols_d, marker_line_width=0,
@@ -612,6 +626,7 @@ for col in COLS:
             ),
             yaxis=dict(showgrid=True, gridcolor="#1e3048", tickfont=dict(color="#7a9ab5", size=8), zeroline=False),
             showlegend=False, bargap=0.15,
+            shapes=shapes,
         )
         st.plotly_chart(fig_d, use_container_width=True, key=f"det_{col}")
 
