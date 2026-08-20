@@ -2,6 +2,28 @@ import streamlit as st
 import base64, os
 import pandas as pd
 
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+
+    if not st.session_state["authenticated"]:
+        st.markdown("""
+        <style>
+        .stApp { background-color: #1a2535; }
+        </style>
+        """, unsafe_allow_html=True)
+        st.markdown('<h2 style="color:white; text-align:center;">🔒 CASI GPS — Acceso restringido</h2>', unsafe_allow_html=True)
+        pwd = st.text_input("Contraseña", type="password")
+        if st.button("Ingresar"):
+            if pwd == st.secrets["PASSWORD"]:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Contraseña incorrecta")
+        st.stop()
+
+check_password()
+
 st.set_page_config(
     page_title="CASI - Análisis de rendimiento",
     page_icon="⚡",
