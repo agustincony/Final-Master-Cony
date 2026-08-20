@@ -318,7 +318,6 @@ def render_filtro_puesto(col_ctx, grupos, prefix, opciones_validas):
                 if grupo_check != todos_grupo_sel:
                     for p in puestos_validos:
                         st.session_state[f"{prefix}{p}"] = grupo_check
-                    st.rerun()
                 for p in puestos_validos:
                     _, col_chk = st.columns([0.15, 0.85])
                     with col_chk:
@@ -329,10 +328,11 @@ todos_jugadores = sorted(df_raw["Player Name"].dropna().unique().tolist())
 todos_puestos   = sorted(df_raw["Position Name"].dropna().unique().tolist())
 cat_semanas     = tabla_semanas(df_raw)
 todas_etiquetas = cat_semanas["Etiqueta"].tolist()[::-1]
+sem_sel = [e for e in todas_etiquetas if st.session_state.get(f"sem_{e}", False)]
 
 jug_sel = get_sel("jug_", todos_jugadores)
 pue_sel = get_sel("pue_", todos_puestos)
-sem_sel = get_sel("sem_", todas_etiquetas)
+
 
 # Inicializar flag de primera visita
 if "sem_iniciado" not in st.session_state:
@@ -358,16 +358,23 @@ equ_act_ca = equ_sel_ca if equ_sel_ca else None
 def jugadores_validos_por_equipo_ca(equ_sel):
     if not equ_sel:
         return None
-    md_equipo = df_raw[
+    return df_raw[
         (df_raw["MD"] == "MD") &
         (df_raw["Equipo"].isin(equ_sel))
-    ][["Player Name", "SemanaInicio"]].drop_duplicates()
-    return md_equipo
+    ][["Player Name", "Fecha"]].drop_duplicates()
 
 df_base_ca = df_raw.copy()
 jug_val_ca = jugadores_validos_por_equipo_ca(equ_act_ca)
 if jug_val_ca is not None:
-    df_base_ca = df_base_ca.merge(jug_val_ca, on=["Player Name", "SemanaInicio"], how="inner")
+    filas_validas = []
+    for _, row in jug_val_ca.iterrows():
+        mask = (
+            (df_base_ca["Player Name"] == row["Player Name"]) &
+            (df_base_ca["Fecha"] >= row["Fecha"] - pd.Timedelta(days=13)) &
+            (df_base_ca["Fecha"] <= row["Fecha"] + pd.Timedelta(days=13))
+        )
+        filas_validas.append(df_base_ca[mask])
+    df_base_ca = pd.concat(filas_validas).drop_duplicates() if filas_validas else df_base_ca.iloc[0:0]
 
 def filtrar_cruzado(excluir):
     d = df_base_ca.copy()
@@ -407,14 +414,29 @@ st.markdown(
     f'{chip("Equipo",  fmt_lista(equ_sel_ca, todos_equipos_ca))}'
     f'</div>', unsafe_allow_html=True
 )
-col_lbl, col_radio, col_lbl2, col_radio2, _ = st.columns([0.07, 0.36, 0.07, 0.36, 0.14])
+mostrar_equipo_radio = bool(equ_act_ca)
+
+# Fila 1: etiquetas
+if mostrar_equipo_radio:
+    col_lbl, col_lbl2, col_lbl3 = st.columns([0.33, 0.33, 0.33])
+else:
+    col_lbl, col_lbl3 = st.columns([0.50, 0.50])
 
 with col_lbl:
-    st.markdown(
-        '<div style="font-size:12px; font-weight:700; color:white; '
-        'text-transform:uppercase; letter-spacing:1px; padding-top:10px;">Semana</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown('<div style="font-size:11px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:1px;">Semana</div>', unsafe_allow_html=True)
+
+if mostrar_equipo_radio:
+    with col_lbl2:
+        st.markdown('<div style="font-size:11px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:1px;">Equipo</div>', unsafe_allow_html=True)
+
+with col_lbl3:
+    st.markdown('<div style="font-size:11px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:1px;">Vista</div>', unsafe_allow_html=True)
+
+# Fila 2: botoneras
+if mostrar_equipo_radio:
+    col_radio, col_radio2, col_radio3 = st.columns([0.33, 0.33, 0.33])
+else:
+    col_radio, col_radio3 = st.columns([0.50, 0.50])
 
 with col_radio:
     modo_semana = st.radio(
@@ -423,32 +445,27 @@ with col_radio:
         index=0, key="modo_semana", horizontal=True, label_visibility="collapsed",
     )
 
-
-with col_radio2:
-    if equ_act_ca:
+if mostrar_equipo_radio:
+    with col_radio2:
         modo_equipo_ca = st.radio(
             label="Modo equipo",
             options=["Sesión completa", "Solo 1 equipo"],
             index=0, key="modo_equipo_ca", horizontal=True, label_visibility="collapsed",
         )
-
-if not equ_act_ca:
+else:
     modo_equipo_ca = "Sesión completa"
+
+with col_radio3:
+    modo_vista = st.radio(
+        label="Vista",
+        options=["Valor absoluto", "Z-score"],
+        index=0, key="modo_vista", horizontal=True, label_visibility="collapsed",
+    )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # APLICAR FILTRO FINAL
 # ══════════════════════════════════════════════════════════════════════════════
-if modo_equipo_ca == "Solo 1 equipo" and equ_act_ca:
-    df = df_raw.copy()
-    df["SemanaInicio"] = pd.to_datetime(df["Fecha"]) - pd.to_timedelta(
-        pd.to_datetime(df["Fecha"]).dt.weekday, unit="D"
-    )
-    jug_val_ca2 = jugadores_validos_por_equipo_ca(equ_act_ca)
-    if jug_val_ca2 is not None:
-        df = df.merge(jug_val_ca2, on=["Player Name", "SemanaInicio"], how="inner")
-    df = df[df["Equipo"].isin(equ_act_ca)]
-else:
-    df = df_base_ca.copy()
+df = df_base_ca.copy()
 
 df = df[df["Player Name"].isin(jug_activo)]
 df = df[df["Position Name"].isin(pue_activo)]
@@ -509,6 +526,44 @@ def etiqueta_dia(row):
 
 detalle_base["EtqDia"] = detalle_base.apply(etiqueta_dia, axis=1)
 
+detalle_base["EtqDia"] = detalle_base.apply(etiqueta_dia, axis=1)
+
+# ── Historial completo para Z-score (todos los filtros salvo semanas) ─────────
+df_hist = df_raw.copy()
+df_hist = df_hist[df_hist["Player Name"].isin(jug_activo)]
+df_hist = df_hist[df_hist["Position Name"].isin(pue_activo)]
+df_hist["Etiqueta"] = df_hist["SemanaInicio"].map(mapa_etq)
+df_hist["EtqCorta"] = df_hist["SemanaInicio"].map(mapa_etq_corta)
+df_hist = df_hist[df_hist["Etiqueta"].isin(sem_activa)]
+
+# Historial SIEMPRE en modo Total (todas las sesiones) para que el Z sea estable
+detalle_hist = promediar_sesion(df_hist)
+detalle_hist["MD"] = detalle_hist["Fecha"].map(md_por_fecha)
+acum_hist_total = (
+    detalle_hist
+    .groupby(["SemanaInicio", "Etiqueta", "EtqCorta"])[COLS]
+    .sum()
+    .reset_index()
+)
+if modo_semana == "Sin partido":
+    detalle_hist_modo = detalle_hist[detalle_hist["MD"] != "MD"]
+elif modo_semana == "Solo partido":
+    detalle_hist_modo = detalle_hist[detalle_hist["MD"] == "MD"]
+else:
+    detalle_hist_modo = detalle_hist
+
+acum_hist_modo = (
+    detalle_hist_modo
+    .groupby(["SemanaInicio", "Etiqueta", "EtqCorta"])[COLS]
+    .sum()
+    .reset_index()
+)
+zscore_media = acum_hist_modo[COLS].mean()
+zscore_std   = acum_hist_modo[COLS].std(ddof=1)
+
+# Para el heatmap usamos también el total
+detalle_hist_hm = detalle_hist.copy()
+
 COLOR_MD    = "#00A8CC"
 COLOR_ENTRE = "#c9d4de"
 detalle_base["color"] = np.where(detalle_base["MD"] == "MD", COLOR_MD, COLOR_ENTRE)
@@ -549,35 +604,69 @@ for col in COLS:
     # ── Izquierda: acumulado semanal ──────────────────────────────────────────
     with c_izq:
         vals      = acum[col].tolist()
-        etqs_x    = acum["EtqCorta"].tolist()   # eje X: "S1 Champagnat", "S14 Champagnat" → distintas
-        etqs_full = acum["Etiqueta"].tolist()   # hover: etiqueta completa
-        fig_a = go.Figure(go.Bar(
-            x=list(range(len(vals))),  # índice numérico → barras siempre separadas
-            y=vals,
-            marker_color=color_met, marker_line_width=0,
-            text=[fmt(v, tipo) for v in vals],
-            textposition="outside",
-            textfont=dict(size=9, color="white"),
-            cliponaxis=False,
-            customdata=etqs_full,
-            hovertemplate="<b>%{customdata}</b><br>%{text}<extra></extra>",
-        ))
-        fig_a.update_layout(
-            title=dict(text=label, font=dict(size=12, color="white"), x=0),
-            paper_bgcolor="#0f1a28", plot_bgcolor="#0f1a28",
-            height=200,
-            margin=dict(t=32, b=60, l=10, r=10),
-            xaxis=dict(
-                tickmode="array",
-                tickvals=list(range(len(vals))),
-                ticktext=etqs_x,
-                tickfont=dict(color="#7a9ab5", size=8),
-                tickangle=-45,
-                showgrid=False,
-            ),
-            yaxis=dict(showgrid=True, gridcolor="#1e3048", tickfont=dict(color="#7a9ab5", size=8), zeroline=False),
-            showlegend=False, bargap=0.25,
-        )
+        etqs_x    = acum["EtqCorta"].tolist()
+        etqs_full = acum["Etiqueta"].tolist()
+
+        if modo_vista == "Z-score":
+            mu  = zscore_media[col]
+            sig = zscore_std[col]
+            if sig == 0 or np.isnan(sig):
+                zvals = [0.0] * len(vals)
+            else:
+                zvals = [(v - mu) / sig for v in vals]
+
+            bar_colors = ["#00CC44" if z >= 0 else "#FF4444" for z in zvals]
+            fig_a = go.Figure(go.Bar(
+                x=list(range(len(zvals))),
+                y=zvals,
+                marker_color=bar_colors, marker_line_width=0,
+                text=[f"{z:+.2f}σ" for z in zvals],
+                textposition="outside",
+                textfont=dict(size=9, color="white"),
+                cliponaxis=False,
+                customdata=etqs_full,
+                hovertemplate="<b>%{customdata}</b><br>Z = %{text}<extra></extra>",
+            ))
+            fig_a.add_hline(y=0, line_color="rgba(200,220,240,0.4)", line_width=1)
+            fig_a.add_hrect(y0=-1, y1=1, fillcolor="rgba(0,168,204,0.05)", line_width=0)
+            fig_a.update_layout(
+                title=dict(text=f"{label} · Z-score", font=dict(size=12, color="#00A8CC"), x=0),
+                paper_bgcolor="#0f1a28", plot_bgcolor="#0f1a28",
+                height=200,
+                margin=dict(t=32, b=60, l=10, r=10),
+                xaxis=dict(
+                    tickmode="array", tickvals=list(range(len(zvals))),
+                    ticktext=etqs_x,
+                    tickfont=dict(color="#7a9ab5", size=8), tickangle=-45, showgrid=False,
+                ),
+                yaxis=dict(showgrid=True, gridcolor="#1e3048", tickfont=dict(color="#7a9ab5", size=8), zeroline=False),
+                showlegend=False, bargap=0.25,
+            )
+        else:
+            fig_a = go.Figure(go.Bar(
+                x=list(range(len(vals))),
+                y=vals,
+                marker_color=color_met, marker_line_width=0,
+                text=[fmt(v, tipo) for v in vals],
+                textposition="outside",
+                textfont=dict(size=9, color="white"),
+                cliponaxis=False,
+                customdata=etqs_full,
+                hovertemplate="<b>%{customdata}</b><br>%{text}<extra></extra>",
+            ))
+            fig_a.update_layout(
+                title=dict(text=label, font=dict(size=12, color="white"), x=0),
+                paper_bgcolor="#0f1a28", plot_bgcolor="#0f1a28",
+                height=200,
+                margin=dict(t=32, b=60, l=10, r=10),
+                xaxis=dict(
+                    tickmode="array", tickvals=list(range(len(vals))),
+                    ticktext=etqs_x,
+                    tickfont=dict(color="#7a9ab5", size=8), tickangle=-45, showgrid=False,
+                ),
+                yaxis=dict(showgrid=True, gridcolor="#1e3048", tickfont=dict(color="#7a9ab5", size=8), zeroline=False),
+                showlegend=False, bargap=0.25,
+            )
         st.plotly_chart(fig_a, use_container_width=True, key=f"acum_{col}")
 
         # ── Derecha: detalle por sesión ───────────────────────────────────────────
@@ -602,7 +691,7 @@ for col in COLS:
                     x0=i - 0.5, x1=i - 0.5,
                     y0=0, y1=1,
                     yref="paper",
-                    line=dict(color="rgba(150,170,190,0.3)", width=1, dash="dot"),
+                    line=dict(color="rgba(0,168,204,0.4)", width=1.5, dash="dot"),
                 ))
 
         fig_d = go.Figure(go.Bar(
@@ -642,5 +731,126 @@ st.markdown(
     f'<span style="width:12px; height:12px; border-radius:2px; background:{COLOR_ENTRE}; display:inline-block;"></span>'
     f'<span style="font-size:12px; color:#cce0f0;">Entrenamiento (muestra el tipo: MD+2, MD-2, etc.)</span></span>'
     f'</div></div>',
+    unsafe_allow_html=True
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HEATMAP Z-SCORE
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="seccion-header">🌡️ Heatmap Z-score · todas las métricas</div>', unsafe_allow_html=True)
+st.markdown(
+    f'<div style="margin-bottom:8px; padding:8px 0; display:flex; flex-wrap:wrap; gap:16px; border-bottom:1px solid #1e3048;">'
+    f'{chip("Jugador", fmt_lista(jug_sel, todos_jugadores))}'
+    f'{chip("Puesto",  fmt_lista(pue_sel, todos_puestos))}'
+    f'{chip("Equipo",  fmt_lista(equ_sel_ca, todos_equipos_ca))}'
+    f'{chip("Semana",  modo_semana)}'
+    f'</div>', unsafe_allow_html=True
+)
+
+# Usar acum_hist (historial completo) para tener todas las semanas en el heatmap
+# zscore_media y zscore_std ya calculados arriba
+if modo_semana == "Sin partido":
+    detalle_hist_hm = detalle_hist[detalle_hist["MD"] != "MD"].copy()
+elif modo_semana == "Solo partido":
+    detalle_hist_hm = detalle_hist[detalle_hist["MD"] == "MD"].copy()
+else:
+    detalle_hist_hm = detalle_hist.copy()
+
+acum_hm = (
+    detalle_hist_hm
+    .groupby(["SemanaInicio", "Etiqueta", "EtqCorta"])[COLS]
+    .sum()
+    .reset_index()
+    .sort_values("SemanaInicio")
+    .reset_index(drop=True)
+)
+acum_hm = acum_hm[acum_hm["Etiqueta"].isin(sem_activa)]
+
+# Calcular Z por celda
+hm_data = {}
+for col in COLS:
+    mu  = zscore_media[col]
+    sig = zscore_std[col]
+    if sig == 0 or np.isnan(sig):
+        hm_data[col] = [0.0] * len(acum_hm)
+    else:
+        hm_data[col] = [(v - mu) / sig for v in acum_hm[col].tolist()]
+
+etqs_hm = acum_hm["EtqCorta"].tolist()
+etqs_full_hm = acum_hm["Etiqueta"].tolist()
+
+# Construir figura de heatmap con Plotly
+z_matrix = []
+y_labels  = []
+for col in COLS:
+    label_met = METRICAS[col][0]
+    z_matrix.append(hm_data[col])
+    y_labels.append(label_met)
+
+hover_matrix = []
+for col in COLS:
+    label_met = METRICAS[col][0]
+    row_hover = []
+    for i, z in enumerate(hm_data[col]):
+        row_hover.append(f"<b>{etqs_full_hm[i]}</b><br>{label_met}<br>Z = {z:+.2f}σ")
+    hover_matrix.append(row_hover)
+
+fig_hm = go.Figure(go.Heatmap(
+    z=z_matrix,
+    x=etqs_hm,
+    y=y_labels,
+    customdata=hover_matrix,
+    hovertemplate="%{customdata}<extra></extra>",
+    colorscale=[
+        [0.0,  "#8B0000"],
+        [0.3,  "#CC3333"],
+        [0.45, "#1e3048"],
+        [0.5,  "#1e3048"],
+        [0.55, "#1e3048"],
+        [0.7,  "#228B22"],
+        [1.0,  "#00CC44"],
+    ],
+    zmid=0,
+    zmin=-2.5,
+    zmax=2.5,
+    text=[[f"{z:+.2f}σ" for z in row] for row in z_matrix],
+    texttemplate="%{text}",
+    textfont=dict(size=9, color="white"),
+    showscale=True,
+    colorbar=dict(
+        title=dict(text="Z-score", font=dict(color="#7a9ab5", size=11)),
+        tickfont=dict(color="#7a9ab5", size=9),
+        tickvals=[-2, -1, 0, 1, 2],
+        ticktext=["-2σ", "-1σ", "0", "+1σ", "+2σ"],
+        len=0.8,
+    ),
+))
+
+fig_hm.update_layout(
+    paper_bgcolor="#0f1a28",
+    plot_bgcolor="#0f1a28",
+    height=320,
+    margin=dict(t=10, b=80, l=120, r=80),
+    xaxis=dict(
+        tickfont=dict(color="#7a9ab5", size=8),
+        tickangle=-45,
+        showgrid=False,
+        side="bottom",
+    ),
+    yaxis=dict(
+        tickfont=dict(color="#cce0f0", size=10),
+        showgrid=False,
+        autorange="reversed",
+    ),
+)
+
+st.plotly_chart(fig_hm, use_container_width=True, key="heatmap_zscore")
+
+st.markdown(
+    '<div style="font-size:10px; color:#7a9ab5; padding:4px 0 16px;">'
+    '🟢 Verde: semana por encima del promedio histórico &nbsp;·&nbsp; '
+    '🔴 Rojo: por debajo &nbsp;·&nbsp; '
+    'Escala: ±2.5σ · historial completo (independiente del filtro de semanas)'
+    '</div>',
     unsafe_allow_html=True
 )

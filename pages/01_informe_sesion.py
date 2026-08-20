@@ -292,7 +292,7 @@ def render_filtro_puesto(col_ctx, grupos, prefix, opciones_validas):
                 todos_grupo_sel = all(st.session_state.get(f"{prefix}{p}", False) for p in puestos_validos)
 
                 def toggle_grupo(ps=puestos_validos, pfx=prefix, g=grupo):
-                    val = st.session_state[f"{pfx}grupo_{g}"]
+                    val = st.session_state.get(f"{pfx}grupo_{g}", False)
                     for p in ps:
                         st.session_state[f"{pfx}{p}"] = val
 
@@ -414,7 +414,9 @@ opciones_md = [m for m in todas_md if m in df_raw["MD"].unique()]
 opciones_jugador = sorted(filtrar_cruzado("jug")["Player Name"].dropna().unique().tolist())
 opciones_puesto  = sorted(filtrar_cruzado("pue")["Position Name"].dropna().unique().tolist())
 import datetime
-df_fec          = filtrar_cruzado("fec")
+df_fec = df_base.copy()
+if jug_activo: df_fec = df_fec[df_fec["Player Name"].isin(jug_activo)]
+if pue_activo: df_fec = df_fec[df_fec["Position Name"].isin(pue_activo)]
 opciones_fechas = sorted(df_fec["Fecha"].unique(), reverse=True)
 def opciones_equipo_cruzado():
     d = df_raw.copy()
