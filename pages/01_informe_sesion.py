@@ -290,16 +290,18 @@ def render_filtro_puesto(col_ctx, grupos, prefix, opciones_validas):
                     continue
                 # Encabezado del grupo — al tildar selecciona todos los puestos del grupo
                 todos_grupo_sel = all(st.session_state.get(f"{prefix}{p}", False) for p in puestos_validos)
+
+                def toggle_grupo(ps=puestos_validos, pfx=prefix, g=grupo):
+                    val = st.session_state[f"{pfx}grupo_{g}"]
+                    for p in ps:
+                        st.session_state[f"{pfx}{p}"] = val
+
                 grupo_check = st.checkbox(
                     grupo.upper(),
                     value=todos_grupo_sel,
-                    key=f"{prefix}grupo_{grupo}"
+                    key=f"{prefix}grupo_{grupo}",
+                    on_change=toggle_grupo
                 )
-                # Si el estado del grupo cambió, actualizar puestos individuales
-                if grupo_check != todos_grupo_sel:
-                    for p in puestos_validos:
-                        st.session_state[f"{prefix}{p}"] = grupo_check
-                    st.rerun()
                 # Puestos individuales con indent
                 for p in puestos_validos:
                     col_ind, col_chk = st.columns([0.15, 0.85])
@@ -408,7 +410,7 @@ def filtrar_cruzado(excluir):
     if excluir != "fec" and fec_activa: d = d[d["Fecha"].isin(fec_activa)]
     return d
 
-opciones_md      = [m for m in todas_md if m in filtrar_cruzado("md")["MD"].unique()]
+opciones_md = [m for m in todas_md if m in df_raw["MD"].unique()]
 opciones_jugador = sorted(filtrar_cruzado("jug")["Player Name"].dropna().unique().tolist())
 opciones_puesto  = sorted(filtrar_cruzado("pue")["Position Name"].dropna().unique().tolist())
 import datetime
@@ -459,6 +461,11 @@ if modo_equipo == "Solo 1 equipo" and equ_activo:
     df = df.drop(columns=["Fecha_dt", "SemanaInicio"])
 else:
     df = df_base.copy()
+
+import sys
+print(f"md_sel: {md_sel}", file=sys.stderr)
+print(f"md_activo: {md_activo}", file=sys.stderr)
+print(f"pue_sel: {pue_sel}", file=sys.stderr)
 
 df = df[df["MD"].isin(md_activo)]
 df = df[df["Player Name"].isin(jug_activo)]
@@ -562,19 +569,32 @@ st.markdown(
 # ── Benchmarks históricos ─────────────────────────────────────────────────────
 # Se excluyen las fechas seleccionadas para no contaminar el histórico
 # df_hist para benchmark vs partido — respeta filtros de jugador/puesto activos
-df_hist = df_raw_full[~df_raw_full["Fecha"].isin(fecha_activa)]
+# Excluir fechas del histórico solo si el usuario seleccionó fechas puntuales
+# Si no hay selección, el histórico incluye todo (no hay sesión específica que contaminar)
+fechas_a_excluir = fec_sel if fec_sel else []
+df_hist = df_raw_full[~df_raw_full["Fecha"].isin(fechas_a_excluir)]
+if jug_activo and set(jug_activo) != set(todos_jugadores):
+    df_hist = df_hist[df_hist["Player Name"].isin(jug_activo)]
+if pue_activo and set(pue_activo) != set(todos_puestos):
+    df_hist = df_hist[df_hist["Position Name"].isin(pue_activo)]
+if equ_activo:
+    df_hist = df_hist[df_hist["Equipo"].isin(equ_activo)]
 
 # Benchmark vs partido (MD puro)
-# El DAX mantiene el contexto de jugador/puesto si está filtrado
 bench_partido = {
     col: calc_bench(df_hist[df_hist["MD"] == "MD"], col)
     for col in COLS
 }
 
 # Benchmark vs mismo tipo de sesión (igual MD)
-# El DAX hace REMOVEFILTERS de jugador y puesto — usa TODOS los jugadores históricos
-# solo filtrando por el tipo de MD. Por eso usamos df_raw_full sin filtros de jugador/puesto.
-df_hist_md = df_raw_full[~df_raw_full["Fecha"].isin(fecha_activa)]
+# Este sí usa TODOS los jugadores (replica REMOVEFILTERS del DAX)
+df_hist_md = df_raw_full[~df_raw_full["Fecha"].isin(fechas_a_excluir)]
+if jug_activo and set(jug_activo) != set(todos_jugadores):
+    df_hist_md = df_hist_md[df_hist_md["Player Name"].isin(jug_activo)]
+if pue_activo and set(pue_activo) != set(todos_puestos):
+    df_hist_md = df_hist_md[df_hist_md["Position Name"].isin(pue_activo)]
+if equ_activo:
+    df_hist_md = df_hist_md[df_hist_md["Equipo"].isin(equ_activo)]
 bench_md_val = {
     col: calc_bench(df_hist_md[df_hist_md["MD"].isin(md_activo)], col)
     for col in COLS

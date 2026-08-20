@@ -475,14 +475,27 @@ rival_por_fecha = (
     .agg(lambda x: x.dropna().mode().iloc[0] if len(x.dropna()) else "")
 )
 
-# Una fila por (semana, fecha) — sumando todas las métricas (jugadores del filtro)
-detalle_base = (
-    df.groupby(["SemanaInicio", "Etiqueta", "EtqCorta", "Fecha"])[COLS]
-    .sum()
-    .reset_index()
-    .sort_values("Fecha")
-    .reset_index(drop=True)
-)
+# Una fila por (semana, fecha) — promedio de jugadores con >30 minutos
+MIN_MINUTOS = 30
+
+def promediar_sesion(df_input):
+    """Promedia métricas por sesión filtrando jugadores con >30 minutos."""
+    mins = df_input.groupby(["SemanaInicio", "Etiqueta", "EtqCorta", "Fecha", "Player Name"])["Minutos"].sum().reset_index()
+    jugadores_validos = mins[mins["Minutos"] > MIN_MINUTOS][["SemanaInicio", "Etiqueta", "EtqCorta", "Fecha", "Player Name"]]
+    df_filtrado = df_input.merge(jugadores_validos, on=["SemanaInicio", "Etiqueta", "EtqCorta", "Fecha", "Player Name"])
+
+    # Promedio por sesión
+    base = (
+        df_filtrado.groupby(["SemanaInicio", "Etiqueta", "EtqCorta", "Fecha"])[COLS]
+        .mean()
+        .reset_index()
+        .sort_values("Fecha")
+        .reset_index(drop=True)
+    )
+
+    return base
+
+detalle_base = promediar_sesion(df)
 detalle_base["MD"] = detalle_base["Fecha"].map(md_por_fecha)
 
 # Etiqueta del eje X del detalle: rival en MD, tipo de día en entrenamiento

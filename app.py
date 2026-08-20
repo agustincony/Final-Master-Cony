@@ -9,13 +9,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+from simular_contactos import simular_contactos
+
 @st.cache_data
 def cargar_excel():
-    return pd.read_excel("TOTALES GPS.xlsx")
+    df = pd.read_excel("TOTALES GPS.xlsx")
+    df, _ = simular_contactos(df)
+    return df
 
 if "df_excel" not in st.session_state:
     st.session_state["df_excel"] = cargar_excel()
-
+    
 def img_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as f:
