@@ -50,6 +50,20 @@ div[data-testid="stRadio"] > label:first-child { display: none !important; }
     padding: 8px 14px; margin: 20px 0 10px 0;
     text-transform: uppercase; border-radius: 0 4px 4px 0;
 }
+div[data-testid="stButton"] button {
+    background-color: #1a2535 !important;
+    border: 1px solid #2a4060 !important;
+    color: white !important;
+    font-size: 11px !important;
+    width: 160px !important;
+}
+div[data-testid="stHorizontalBlock"] {
+    gap: 0px !important;
+}
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+    padding: 0px !important;
+    min-width: 0px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,7 +85,6 @@ COL_EFF_80  = "# >80% Vel Max"
 
 METRICAS = {
     "Distancia Total":                          ("Dist Tot",     "#7FB3E0"),
-    "Total Player Load":                        ("Player Load",  "#B8A8E0"),
     "AI 18 Km/h":                               ("HSR",          "#F2A8C0"),
     "DT + 25 Km/h":                             ("Sprint",       "#C4A8E0"),
     "+25 Km/h #":                               ("N° Sprints",   "#F5C09A"),
@@ -80,6 +93,7 @@ METRICAS = {
     "Acel 2,5 m/ss #":                          ("N° Acel",      "#A8DDB5"),
     "Desacel -2,5 m/ss #":                      ("N° Decel",     "#F0DC96"),
     "Contact Involvement Total Count Avg":      ("Contactos",    "#A8E0DC"),
+    "Total Player Load":                        ("Player Load",  "#B8A8E0"),
 }
 COLS = list(METRICAS.keys())
 
@@ -177,10 +191,7 @@ def calcular_ewma(df):
         fecha_max = g["Fecha"].max()
         idx = pd.date_range(fecha_min, fecha_max, freq="D")
         g_diario = g.set_index("Fecha").reindex(idx)
-        for col in COLS:
-            if col in g_diario.columns:
-                g_diario[col] = g_diario[col].fillna(0)
-
+        
         pos = g["Position Name"].iloc[-1]
 
         for col in COLS:
@@ -235,7 +246,7 @@ st.markdown(
 )
 
 # ── Filtros ───────────────────────────────────────────────────────────────────
-todos_jugadores = sorted(df_raw["Player Name"].dropna().unique().tolist())
+todos_jugadores_raw = sorted(df_raw[df_raw["MD"] != "MD"]["Player Name"].dropna().unique().tolist())
 todos_puestos   = sorted(df_raw["Position Name"].dropna().unique().tolist())
 todas_fechas    = sorted(df_ewma["Fecha"].unique(), reverse=True)
 
@@ -281,38 +292,63 @@ def render_filtro_puesto(col_ctx, grupos, prefix, opciones_validas):
                     with col_chk:
                         st.checkbox(p, key=f"{prefix}{p}")
 
-jug_sel = get_sel("ew_jug_", todos_jugadores)
+jug_sel = get_sel("ew_jug_", todos_jugadores_raw)
 pue_sel = get_sel("ew_pue_", todos_puestos)
 
-jug_activo = jug_sel if jug_sel else todos_jugadores
+jug_activo = jug_sel if jug_sel else todos_jugadores_raw
 pue_activo = pue_sel if pue_sel else todos_puestos
 
+# Selector de fecha primero
+opciones_fecha = []
+for f in todas_fechas:
+    dia = DIAS_ES[f.weekday()]
+    fila_md = df_raw[(df_raw["Fecha"] == f) & (df_raw["MD"] == "MD") & (df_raw["Rival"].notna())]
+    rival_str = f" · {fila_md['Rival'].iloc[0]}" if not fila_md.empty else ""
+    opciones_fecha.append(f"{dia} {f.day:02d}/{f.month:02d}{rival_str}")
+
+fecha_idx_tmp = st.session_state.get("ew_fecha", 0)
+fecha_sel_tmp = todas_fechas[fecha_idx_tmp] if fecha_idx_tmp < len(todas_fechas) else todas_fechas[0]
+fecha_desde_tmp = fecha_sel_tmp - pd.Timedelta(days=28)
+
+todos_jugadores_raw = sorted(df_raw[
+    (df_raw["MD"] != "MD") &
+    (df_raw["Fecha"] >= fecha_desde_tmp) &
+    (df_raw["Fecha"] <= fecha_sel_tmp)
+]["Player Name"].dropna().unique().tolist())
+
 f1, f2, f3 = st.columns(3)
-render_filtro(f1, "Jugador", "ew_jug_", todos_jugadores)
+render_filtro(f1, "Jugador", "ew_jug_", todos_jugadores_raw)
 render_filtro_puesto(f2, GRUPOS_PUESTO, "ew_pue_", todos_puestos)
 
-# Selector de fecha de referencia
 with f3:
     st.markdown('<span style="font-size:12px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:1px;">Fecha de referencia</span>', unsafe_allow_html=True)
-    opciones_fecha = []
-    for f in todas_fechas:
-        dia = DIAS_ES[f.weekday()]
-        fila_md = df_raw[(df_raw["Fecha"] == f) & (df_raw["MD"] == "MD") & (df_raw["Rival"].notna())]
-        rival_str = f" · {fila_md['Rival'].iloc[0]}" if not fila_md.empty else ""
-        opciones_fecha.append(f"{dia} {f.day:02d}/{f.month:02d}{rival_str}")
     fecha_idx = st.selectbox(
         label="Fecha", options=range(len(todas_fechas)),
         format_func=lambda i: opciones_fecha[i],
         key="ew_fecha", label_visibility="collapsed",
     )
     fecha_sel = todas_fechas[fecha_idx]
-
+    fecha_desde = fecha_sel - pd.Timedelta(days=28)
+    todos_jugadores = sorted(df_raw[
+        (df_raw["Fecha"] >= fecha_desde) &
+        (df_raw["Fecha"] <= fecha_sel) &
+        (df_raw["MD"] != "MD")
+    ]["Player Name"].dropna().unique().tolist())
 st.markdown("<hr style='border-color:#1e3048; margin:8px 0 16px 0;'>", unsafe_allow_html=True)
 
 # ── Calcular scores para la fecha seleccionada ────────────────────────────────
+# Solo jugadores con al menos una sesión no-MD en los últimos 28 días
+fecha_desde = fecha_sel - pd.Timedelta(days=28)
+jugs_activos_28 = df_raw[
+    (df_raw["Fecha"] >= fecha_desde) &
+    (df_raw["Fecha"] <= fecha_sel) &
+    (df_raw["MD"] != "MD")
+]["Player Name"].unique()
+
 df_fecha = df_ewma[
     (df_ewma["Fecha"] == fecha_sel) &
     (df_ewma["Player Name"].isin(jug_activo)) &
+    (df_ewma["Player Name"].isin(jugs_activos_28)) &
     (df_ewma["Position Name"].isin(pue_activo))
 ].copy()
 
@@ -366,7 +402,6 @@ def label_score_n(s, u1, u2):
 pivot[["Score_Total", "N_Metricas", "Color_Score", "Label_Score"]] = pivot.apply(
     lambda row: pd.Series(calcular_score_ajustado(row)), axis=1
 )
-
 # ══════════════════════════════════════════════════════════════════════════════
 # SECCIÓN 1 — ESTADO GENERAL (solo jugadores en alerta o precaución)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -378,53 +413,66 @@ n_precaucion= len(pivot[pivot["Color_Score"] == "#FFD000"])
 n_optimo    = len(pivot[pivot["Color_Score"] == "#00CC44"])
 total_jug   = len(pivot)
 
+# Filtro activo por click
+if "ew_filtro_estado" not in st.session_state:
+    st.session_state["ew_filtro_estado"] = None
+
+def toggle_filtro(estado):
+    if st.session_state["ew_filtro_estado"] == estado:
+        st.session_state["ew_filtro_estado"] = None
+    else:
+        st.session_state["ew_filtro_estado"] = estado
+
 st.markdown(
-    f'<div style="display:flex; gap:24px; margin-bottom:16px;">'
-    f'<div style="background:#0f1a28; border:2px solid #FF0000; border-radius:10px; padding:12px 24px; text-align:center;">'
-    f'<div style="font-size:28px; font-weight:900; color:#FF0000;">{n_alerta}</div>'
-    f'<div style="font-size:11px; color:#7a9ab5; text-transform:uppercase;">En alerta</div></div>'
-    f'<div style="background:#0f1a28; border:2px solid #FFD000; border-radius:10px; padding:12px 24px; text-align:center;">'
-    f'<div style="font-size:28px; font-weight:900; color:#FFD000;">{n_precaucion}</div>'
-    f'<div style="font-size:11px; color:#7a9ab5; text-transform:uppercase;">Precaución</div></div>'
-    f'<div style="background:#0f1a28; border:2px solid #00CC44; border-radius:10px; padding:12px 24px; text-align:center;">'
-    f'<div style="font-size:28px; font-weight:900; color:#00CC44;">{n_optimo}</div>'
-    f'<div style="font-size:11px; color:#7a9ab5; text-transform:uppercase;">Óptimo</div></div>'
-    f'<div style="background:#0f1a28; border:1px solid #1e3048; border-radius:10px; padding:12px 24px; text-align:center;">'
-    f'<div style="font-size:28px; font-weight:900; color:white;">{total_jug}</div>'
-    f'<div style="font-size:11px; color:#7a9ab5; text-transform:uppercase;">Total</div></div>'
+    f'<div style="display:flex; gap:8px; margin-bottom:8px;">'
+    f'<div style="background:#0f1a28; border:{"4px" if st.session_state["ew_filtro_estado"]=="#FF0000" else "2px"} solid #FF0000; border-radius:10px; padding:12px 24px; text-align:center; width:160px;">'
+    f'<div style="font-size:28px; font-weight:900; color:#FF0000;">{n_alerta}</div></div>'
+    f'<div style="background:#0f1a28; border:{"4px" if st.session_state["ew_filtro_estado"]=="#FFD000" else "2px"} solid #FFD000; border-radius:10px; padding:12px 24px; text-align:center; width:160px;">'
+    f'<div style="font-size:28px; font-weight:900; color:#FFD000;">{n_precaucion}</div></div>'
+    f'<div style="background:#0f1a28; border:{"4px" if st.session_state["ew_filtro_estado"]=="#00CC44" else "2px"} solid #00CC44; border-radius:10px; padding:12px 24px; text-align:center; width:160px;">'
+    f'<div style="font-size:28px; font-weight:900; color:#00CC44;">{n_optimo}</div></div>'
+    f'<div style="background:#0f1a28; border:1px solid #1e3048; border-radius:10px; padding:12px 24px; text-align:center; width:160px;">'
+    f'<div style="font-size:28px; font-weight:900; color:white;">{total_jug}</div></div>'
     f'</div>',
     unsafe_allow_html=True
 )
 
-pivot["Score_Max"] = pivot["N_Metricas"] * 3
-st.dataframe(
-    pivot[["Player Name", "Position Name", "Score_Total", "Score_Max", "N_Metricas", "Label_Score"]].sort_values("Score_Total", ascending=False),
-    use_container_width=True, hide_index=True, height=300
-)
+col_alerta, col_precaucion, col_optimo, _ = st.columns([0.145, 0.145, 0.145, 0.565])
+with col_alerta:
+    st.button("🚨 Alerta", key="btn_alerta", on_click=toggle_filtro, args=("#FF0000",), use_container_width=True)
+with col_precaucion:
+    st.button("⚠️ Precaución", key="btn_precaucion", on_click=toggle_filtro, args=("#FFD000",), use_container_width=True)
+with col_optimo:
+    st.button("✅ Óptimo", key="btn_optimo", on_click=toggle_filtro, args=("#00CC44",), use_container_width=True)
 
-# Grid de jugadores NO óptimos
-df_alertas = pivot[pivot["Color_Score"] != "#00CC44"].sort_values("Score_Total", ascending=False)
+st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
 
-if df_alertas.empty:
+# Grid filtrado
+filtro_activo = st.session_state["ew_filtro_estado"]
+if filtro_activo:
+    df_grid = pivot[pivot["Color_Score"] == filtro_activo].sort_values("Player Name")
+else:
+    df_grid = pivot[pivot["Color_Score"] != "#00CC44"].sort_values("Score_Total", ascending=False)
+
+if df_grid.empty:
     st.markdown('<div style="color:#00CC44; font-size:14px; font-weight:700;">✅ Todos los jugadores en estado óptimo</div>', unsafe_allow_html=True)
 else:
     grid_html = '<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">'
-    for _, row in df_alertas.iterrows():
+    for _, row in df_grid.iterrows():
         color  = row["Color_Score"]
         label  = row["Label_Score"]
         nombre = row["Player Name"]
         puesto = row["Position Name"]
         grid_html += (
             f'<div style="background:#0f1a28; border:2px solid {color}; border-radius:10px;'
-            f' padding:10px 12px; min-width:150px; max-width:200px; flex:1;">'
+            f' padding:10px 12px; width:140px; flex:0 0 140px; height:100px; display:flex; flex-direction:column; justify-content:space-between;">'
             f'<div style="font-size:12px; font-weight:700; color:white; margin-bottom:2px;">{nombre}</div>'
-            f'<div style="font-size:10px; color:#7a9ab5; margin-bottom:4px;">{puesto}</div>'
             f'<div style="font-size:13px; font-weight:900; color:{color};">{label}</div>'
             f'</div>'
         )
     grid_html += '</div>'
     st.markdown(grid_html, unsafe_allow_html=True)
-            
+
 st.markdown("<hr style='border-color:#1e3048; margin:20px 0;'>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -532,7 +580,9 @@ else:
     with col_barras:
         # Barras de carga aguda por sesión (últimas 8 sesiones)
         df_jug_raw = df_raw[df_raw["Player Name"] == jug_detalle].sort_values("Fecha")
-        df_jug_agg = df_jug_raw.groupby("Fecha")[met_detalle].sum().reset_index().tail(8)
+        df_jug_agg = df_jug_raw.groupby("Fecha")[met_detalle].sum().reset_index()
+        df_jug_agg = df_jug_agg[df_jug_agg["Fecha"] >= (fecha_sel - pd.Timedelta(days=28))]
+        df_jug_agg = df_jug_agg[df_jug_agg["Fecha"] <= fecha_sel]
         bar_colors = ["#00A8CC" if (df_raw[(df_raw["Player Name"] == jug_detalle) & (df_raw["Fecha"] == f)]["MD"] == "MD").any() else "#c9d4de" for f in df_jug_agg["Fecha"]]
         DIAS_ES2 = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
         etqs = [f"{DIAS_ES2[f.weekday()]} {f.day:02d}/{f.month:02d}" for f in df_jug_agg["Fecha"]]
