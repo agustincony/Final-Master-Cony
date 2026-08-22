@@ -284,11 +284,11 @@ else:
         )
 
     if unidad_top == "Km/h":
-        df_top = df_top.sort_values("Maximum Velocity", ascending=False).reset_index(drop=True).head(10)
+        df_top = df_top_base.copy().sort_values("Maximum Velocity", ascending=False).reset_index(drop=True).head(10)
         x_vals = df_top["Maximum Velocity"]
         bar_texts = [f"{v:.2f} km/h" for v in x_vals]
     else:
-        df_top = df_top.sort_values("Max Vel (% Max)", ascending=False).reset_index(drop=True).head(10)
+        df_top = df_top_base.copy().sort_values("Max Vel (% Max)", ascending=False).reset_index(drop=True).head(10)
         x_vals = df_top["Max Vel (% Max)"]
         bar_texts = [f"{v:.0f}%" for v in x_vals]
 
