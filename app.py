@@ -350,7 +350,15 @@ if ultima_fecha_ewma is not None:
             (df_raw["Fecha"] <= ultima_fecha_ewma)
         ].groupby("Player Name")["Fecha"].nunique()
 
-        jugadores_activos = sesiones_28[sesiones_28 >= 8].index
+        jugs_con_md = df_raw[
+            (df_raw["Fecha"] >= ultima_fecha_ewma - pd.Timedelta(days=28)) &
+            (df_raw["Fecha"] <= ultima_fecha_ewma) &
+            (df_raw["MD"] == "MD")
+        ]["Player Name"].unique()
+
+        jugadores_activos = sesiones_28[
+            (sesiones_28 >= 8) & (sesiones_28.index.isin(jugs_con_md))
+        ].index
 
         n_alerta     = len(pivot[(pivot["Color_Score"] == "#FF0000") & (pivot["Player Name"].isin(jugadores_activos))])
         n_precaucion = len(pivot[(pivot["Color_Score"] == "#FFD000") & (pivot["Player Name"].isin(jugadores_activos))])

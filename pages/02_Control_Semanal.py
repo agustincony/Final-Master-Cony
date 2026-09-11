@@ -359,10 +359,17 @@ jugs_activos_28 = df_raw[
     (df_raw["MD"] != "MD")
 ]["Player Name"].unique()
 
+jugs_con_md = df_raw[
+    (df_raw["Fecha"] >= fecha_desde) &
+    (df_raw["Fecha"] <= fecha_sel) &
+    (df_raw["MD"] == "MD")
+]["Player Name"].unique()
+
 df_fecha = df_ewma_ejes[
     (df_ewma_ejes["Fecha"] == fecha_sel) &
     (df_ewma_ejes["Player Name"].isin(jug_activo)) &
     (df_ewma_ejes["Player Name"].isin(jugs_activos_28)) &
+    (df_ewma_ejes["Player Name"].isin(jugs_con_md)) &
     (df_ewma_ejes["Position Name"].isin(pue_activo))
 ].copy()
 
