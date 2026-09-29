@@ -142,8 +142,8 @@ METRICAS = {
     "+25 Km/h #":                            ("N° Sprints",        "cantidad", "dec", "#F5C09A"),
     COL_DIST_80:                             ("Dist >80% (m)",     "mts",      "int", "#FFB347"),
     COL_EFF_80:                              ("# >80% vel max",    "cantidad", "dec", "#FF8C69"),
-    "Acel 2,5 m/ss #":                       ("N° Acel",           "cantidad", "dec", "#A8DDB5"),
-    "Desacel -2,5 m/ss #":                   ("N° Decel",          "cantidad", "dec", "#F0DC96"),
+    "Acel 2,5 m/ss #":                       ("N° Acel",           "cantidad", "int", "#A8DDB5"),
+    "Desacel -2,5 m/ss #":                   ("N° Decel",          "cantidad", "int", "#F0DC96"),
     "Contact Involvement Total Count Avg":   ("N° Contactos",      "cantidad", "dec", "#A8E0DC"),
     "Total Player Load":                     ("Player Load",       "u.a.",     "dec", "#B8A8E0"),
 }

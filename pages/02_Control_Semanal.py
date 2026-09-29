@@ -116,17 +116,30 @@ GRUPOS_PUESTO = {
 
 # ── Ejes de carga (score de riesgo) ───────────────────────────────────────────
 # 4 ejes independientes — evitan la inflación por correlación entre métricas.
+# Por esto:
 EJES = {
-    "Volumen":       ["Distancia Total"],
-    "Intensidad":    ["AI 18 Km/h"],
-    "Neuromuscular": ["Acel 2,5 m/ss #", "Desacel -2,5 m/ss #"],
-    "Impactos":      ["Contact Involvement Total Count Avg"],
+    "Distancia Total":                      ["Distancia Total"],
+    "AI 18 Km/h":                           ["AI 18 Km/h"],
+    "DT + 25 Km/h":                         ["DT + 25 Km/h"],
+    "+25 Km/h #":                           ["+25 Km/h #"],
+    COL_DIST_80:                            [COL_DIST_80],
+    COL_EFF_80:                             [COL_EFF_80],
+    "Acel 2,5 m/ss #":                      ["Acel 2,5 m/ss #"],
+    "Desacel -2,5 m/ss #":                  ["Desacel -2,5 m/ss #"],
+    "Contact Involvement Total Count Avg":  ["Contact Involvement Total Count Avg"],
+    "Total Player Load":                    ["Total Player Load"],
 }
 EJES_LABELS = {
-    "Volumen":       ("Volumen",       "#7FB3E0"),
-    "Intensidad":    ("Intensidad",    "#F2A8C0"),
-    "Neuromuscular": ("Neuromuscular", "#96E2A9"),
-    "Impactos":      ("Impactos",      "#DFE0A8"),
+    "Distancia Total":                      ("Dist Tot (m)",   "#86DC93"),
+    "AI 18 Km/h":                           ("HSR (m)",        "#F2A8C0"),
+    "DT + 25 Km/h":                         ("Sprint (m)",     "#C4A8E0"),
+    "+25 Km/h #":                           ("N° Sprints",     "#F5C09A"),
+    COL_DIST_80:                            ("Dist >80% (m)",  "#FFB347"),
+    COL_EFF_80:                             ("# >80% vel max", "#FF8C69"),
+    "Acel 2,5 m/ss #":                      ("N° Acel",        "#A8DDB5"),
+    "Desacel -2,5 m/ss #":                  ("N° Decel",       "#F0DC96"),
+    "Contact Involvement Total Count Avg":  ("N° Contactos",   "#A8E0DC"),
+    "Total Player Load":                    ("Player Load",    "#B8A8E0"),
 }
 COLS_EJES = list(EJES.keys())
 
