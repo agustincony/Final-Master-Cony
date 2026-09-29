@@ -647,7 +647,10 @@ for c in ["Minutos", "Dist Tot", "HSR", "Sprint", "N° Sprints", "Acel", "Decel"
     if c in df_tabla.columns:
         df_tabla[c] = df_tabla[c].round(2)
 
-df_tabla = df_tabla.sort_values("Jugador", ascending=True)
+df_tabla = df_tabla.sort_values(
+    ["Jugador", "Fecha"],
+    ascending=[True, True]
+)
 df_tabla["Equipo"] = df_tabla["Equipo"].fillna("").apply(lambda x: "" if str(x) == "nan" else x)
 df_tabla["Rival"]  = df_tabla["Rival"].fillna("").apply(lambda x: "" if str(x) == "nan" else x)
 
