@@ -116,8 +116,22 @@ GRUPOS_PUESTO = {
 
 # ── Ejes de carga (score de riesgo) ───────────────────────────────────────────
 # 4 ejes independientes — evitan la inflación por correlación entre métricas.
-# Por esto:
 EJES = {
+    "Volumen":       ["Distancia Total"],
+    "Intensidad":    ["AI 18 Km/h"],
+    "Neuromuscular": ["Acel 2,5 m/ss #", "Desacel -2,5 m/ss #"],
+    "Impactos":      ["Contact Involvement Total Count Avg"],
+}
+EJES_LABELS = {
+    "Volumen":       ("Volumen",       "#7FB3E0"),
+    "Intensidad":    ("Intensidad",    "#F2A8C0"),
+    "Neuromuscular": ("Neuromuscular", "#96E2A9"),
+    "Impactos":      ("Impactos",      "#DFE0A8"),
+}
+COLS_EJES = list(EJES.keys())
+
+# ── Ejes para Carga Semanal (Sección 3) — 10 métricas individuales ────────────
+EJES_S3 = {
     "Distancia Total":                      ["Distancia Total"],
     "AI 18 Km/h":                           ["AI 18 Km/h"],
     "DT + 25 Km/h":                         ["DT + 25 Km/h"],
@@ -129,7 +143,7 @@ EJES = {
     "Contact Involvement Total Count Avg":  ["Contact Involvement Total Count Avg"],
     "Total Player Load":                    ["Total Player Load"],
 }
-EJES_LABELS = {
+EJES_LABELS_S3 = {
     "Distancia Total":                      ("Dist Tot (m)",   "#86DC93"),
     "AI 18 Km/h":                           ("HSR (m)",        "#F2A8C0"),
     "DT + 25 Km/h":                         ("Sprint (m)",     "#C4A8E0"),
@@ -141,7 +155,7 @@ EJES_LABELS = {
     "Contact Involvement Total Count Avg":  ("N° Contactos",   "#A8E0DC"),
     "Total Player Load":                    ("Player Load",    "#B8A8E0"),
 }
-COLS_EJES = list(EJES.keys())
+COLS_EJES_S3 = list(EJES_S3.keys())
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def img_base64(path):
@@ -890,12 +904,12 @@ else:
         jugs_ok = mins2[mins2 > 30].reset_index()[["Player Name", "Fecha"]]
         df_sem_s3 = df_sem_s3.merge(jugs_ok, on=["Player Name", "Fecha"], how="inner")
 
-    # Agregar por fecha usando LOS 4 EJES
-    cols_base_s3 = sorted({c for cols in EJES.values() for c in cols})
+    # Agregar por fecha usando LAS 10 MÉTRICAS (Sección 3)
+    cols_base_s3 = sorted({c for cols in EJES_S3.values() for c in cols})
     df_por_jug  = df_sem_s3.groupby(["Player Name", "Fecha", "MD"])[cols_base_s3].sum().reset_index()
-    for eje, cols in EJES.items():
+    for eje, cols in EJES_S3.items():
         df_por_jug[eje] = df_por_jug[cols].sum(axis=1)
-    df_dias = df_por_jug.groupby(["Fecha", "MD"])[COLS_EJES].mean().reset_index()
+    df_dias = df_por_jug.groupby(["Fecha", "MD"])[COLS_EJES_S3].mean().reset_index()
     df_dias = df_dias.sort_values("Fecha")
 
     DIAS_ES3 = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
@@ -927,17 +941,17 @@ else:
     if modo_s3 == "Jugador":
         pf_row = df_perfil[df_perfil["Player Name"] == filt_s3]
         perfil_ejes = {}
-        for eje, cols in EJES.items():
+        for eje, cols in EJES_S3.items():
             perfil_ejes[eje] = pf_row[[c for c in cols if c in pf_row.columns]].sum(axis=1).iloc[0] if not pf_row.empty else np.nan
     elif modo_s3 == "Puesto":
         pf_rows = df_perfil[df_perfil["Position Name"].isin(filt_s3 if isinstance(filt_s3, list) else [filt_s3])]
-        perfil_ejes = {eje: pf_rows[[c for c in cols if c in pf_rows.columns]].sum(axis=1).mean() for eje, cols in EJES.items()} if not pf_rows.empty else {e: np.nan for e in COLS_EJES}
+        perfil_ejes = {eje: pf_rows[[c for c in cols if c in pf_rows.columns]].sum(axis=1).mean() for eje, cols in EJES_S3.items()} if not pf_rows.empty else {e: np.nan for e in COLS_EJES_S3}
     elif modo_s3 == "Equipo":
         jugs_eq = df_raw[(df_raw["MD"] == "MD") & (df_raw["Equipo"] == filt_s3)]["Player Name"].unique()
         pf_rows = df_perfil[df_perfil["Player Name"].isin(jugs_eq)]
-        perfil_ejes = {eje: pf_rows[[c for c in cols if c in pf_rows.columns]].sum(axis=1).mean() for eje, cols in EJES.items()} if not pf_rows.empty else {e: np.nan for e in COLS_EJES}
+        perfil_ejes = {eje: pf_rows[[c for c in cols if c in pf_rows.columns]].sum(axis=1).mean() for eje, cols in EJES_S3.items()} if not pf_rows.empty else {e: np.nan for e in COLS_EJES_S3}
     else:
-        perfil_ejes = {eje: df_perfil[[c for c in cols if c in df_perfil.columns]].sum(axis=1).mean() for eje, cols in EJES.items()}
+        perfil_ejes = {eje: df_perfil[[c for c in cols if c in df_perfil.columns]].sum(axis=1).mean() for eje, cols in EJES_S3.items()}
 
     def color_obj(ratio, obj):
         if ratio is None: return "#4a6a80"
@@ -948,9 +962,9 @@ else:
     OBJETIVOS_OPCIONES = ["x1", "x1.5", "x2", "x2.5"]
     OBJETIVOS_VALORES  = {"x1": 1.0, "x1.5": 1.5, "x2": 2.0, "x2.5": 2.5}
 
-    # ── Render: una fila por EJE (4 filas) ───────────────────────────────────
-    for eje in COLS_EJES:
-        etq_eje, color_eje = EJES_LABELS[eje]
+    # ── Render: una fila por MÉTRICA (10 filas) ──────────────────────────────
+    for eje in COLS_EJES_S3:
+        etq_eje, color_eje = EJES_LABELS_S3[eje]
         vals_dias  = df_dias[eje].tolist() if eje in df_dias.columns else []
         etqs_x     = df_dias["EtqX"].tolist()
         mds        = df_dias["MD"].tolist()
