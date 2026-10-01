@@ -483,6 +483,7 @@ for label in [l for l in opciones.keys() if l in partidos_sel]:
         "fecha": label.split(" · ")[1].split(" vs ")[0],
         "score_simple": score_equipo(dp, ponderar),
         "score_linea": score_equipo_por_linea(dp, ponderar),
+        "desglose": scores_por_linea(dp, ponderar),
     })
 
 df_lin = pd.DataFrame(datos_lin)
@@ -508,6 +509,41 @@ fig_lin.update_layout(paper_bgcolor="#1a2535", plot_bgcolor="#0f1a28", height=35
     yaxis=dict(tickfont=dict(color="#7a9ab5", size=9), gridcolor="#1e3048", range=rango_y(y_lin)),
     showlegend=True, legend=dict(font=dict(color="white", size=10), bgcolor="#0f1a28"), bargap=0.3)
 st.plotly_chart(fig_lin, use_container_width=True)
+
+# ── Fichas: score por línea con desglose de cada sector ──────────────────────────
+fichas_lin = '<div style="overflow-x:auto;"><div style="display:flex;flex-wrap:wrap;gap:16px;">'
+for _, r in df_lin.iterrows():
+    sc_eq = int(r["score_linea"])
+    cs = color_semaforo(sc_eq)
+    desglose_html = ""
+    for grp in GRUPOS_PUESTO.keys():
+        if grp not in r["desglose"]:
+            continue
+        v = r["desglose"][grp]
+        cv = color_semaforo(v)
+        desglose_html += (
+            '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">'
+            + '<span style="font-size:10px;color:#7a9ab5;">' + grp + '</span>'
+            + '<span style="font-size:11px;font-weight:700;color:' + cv + ';">' + str(v) + '</span>'
+            + '</div>'
+        )
+    fichas_lin += (
+        '<div style="background:#0f1a28;border:1px solid #1e3048;border-radius:10px;padding:12px;width:200px;flex-shrink:0;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">'
+        + '<div>'
+        + '<div style="font-size:10px;color:#7a9ab5;text-transform:uppercase;letter-spacing:1px;">' + str(titulo_ficha) + ' · ' + r["fecha"] + '</div>'
+        + '<div style="font-size:15px;font-weight:900;color:#ffffff;margin-top:3px;">vs ' + r["rival"] + '</div>'
+        + '<div style="font-size:9px;color:#4a6a80;margin-top:2px;">Fecha ' + r["label"].split(" · ")[0][1:] + '</div>'
+        + '</div>'
+        + '<div style="text-align:right;">'
+        + '<div style="font-size:48px;font-weight:900;color:' + cs + ';line-height:1;">' + str(sc_eq) + '</div>'
+        + '<div style="font-size:9px;color:#4a6a80;text-transform:uppercase;">x línea</div>'
+        + '</div></div>'
+        + '<div style="border-top:1px solid #1e3048;padding-top:8px;">' + desglose_html + '</div>'
+        + '</div>'
+    )
+fichas_lin += '</div></div>'
+st.markdown(fichas_lin, unsafe_allow_html=True)
 
 # ── Matriz línea × métrica (un partido a la vez) ─────────────────────────────────
 st.markdown('<div class="seccion-header">📊 Detalle línea × métrica</div>', unsafe_allow_html=True)
