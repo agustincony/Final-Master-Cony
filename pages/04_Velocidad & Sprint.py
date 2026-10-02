@@ -752,13 +752,20 @@ if df_g.empty:
     st.warning("No hay datos para los filtros seleccionados.")
 else:
 
-# Quedarse con el último puesto registrado por jugador
+# Posición más frecuente por jugador; en empate, la más reciente
+    def puesto_predominante(sub):
+        conteo = sub.groupby("Position Name")["Fecha"].agg(["count", "max"])
+        conteo = conteo.sort_values(["count", "max"], ascending=[False, False])
+        return conteo.index[0]
+
     ultimo_puesto = (
-        df_g.sort_values("Fecha")
-        .groupby("Player Name")["Position Name"]
-        .last()
+        df_g[["Player Name", "Position Name", "Fecha"]]
+        .drop_duplicates()
+        .groupby("Player Name")
+        .apply(puesto_predominante)
     )
     df_g["Position Name"] = df_g["Player Name"].map(ultimo_puesto)
+    
     # Max del % por jugador por semana
     grilla = (
         df_g.groupby(["Player Name", "Position Name", "SemanaInicio"])["Max Vel (% Max)"]
